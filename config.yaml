@@ -1,0 +1,9 @@
+arch: resnet18
+batch-size: 8
+config: ./config.yaml
+dataset-root: /scratch_nvme/jakobj/torchdata
+device: cuda
+epochs: 1
+lr: 1.0
+weight-decay: 1.0e-09
+workers: 2
