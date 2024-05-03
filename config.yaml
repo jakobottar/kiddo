@@ -1,5 +1,5 @@
 arch: resnet18
-batch-size: 8
+batch-size: 256
 config: ./config.yaml
 dataset-root: /scratch_nvme/jakobj/torchdata
 device: cuda
