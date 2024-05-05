@@ -178,7 +178,7 @@ if __name__ == "__main__":
     ## TRAIN MODEL ##
     #################
     mlflow.set_tracking_uri("http://tularosa.sci.utah.edu:5000")
-    mlflow.set_experiment("magni")
+    mlflow.set_experiment("kiddo")
     mlflow.start_run(run_name=configs.name)
     mlflow.log_params(vars(configs))
 
