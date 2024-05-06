@@ -14,7 +14,7 @@ from torchmetrics.classification import MulticlassAccuracy
 from torchvision import models
 from tqdm import tqdm
 
-from utils import ConvNeXt, ResNet18, ResNet50, ViT, get_datasets, parse_configs
+from utils import ConvNeXt, ResNet18, ResNet50, Vim, ViT, get_datasets, parse_configs
 
 
 def cosine_annealing(step, total_steps, lr_max, lr_min):
@@ -47,6 +47,8 @@ def train_loop(dataloader, model, optimizer):
 
         # compute prediction and loss
         logits = model(images)
+        if configs.arch == "vim":  # returns patchwise logits
+            logits = torch.mode(logits, dim=1).values
         loss = loss_fn(logits, labels)
         train_loss += loss.item()
 
@@ -86,6 +88,8 @@ def val_loop(val_dataloader, model):
 
             # compute prediction and loss
             logits = model(images)
+            if configs.arch == "vim":  # returns patchwise logits
+                logits = torch.mode(logits, dim=1).values
             val_loss += loss_fn(logits, labels).item()
             preds = torch.argmax(F.softmax(logits, dim=1), dim=1)
 
@@ -154,12 +158,28 @@ if __name__ == "__main__":
             model.load_state_dict(models.ViT_L_16_Weights.IMAGENET1K_V1.get_state_dict())
             if configs.dataset != "imagenet":
                 model.heads.head = nn.Linear(model.heads.head.in_features, datasets["num_classes"])
+        case "vim":
+            model = Vim(
+                dim=256,  # Dimension of the model
+                heads=8,  # Number of attention heads
+                dt_rank=32,  # Rank of the dynamic routing tensor
+                dim_inner=256,  # Inner dimension of the model
+                d_state=256,  # State dimension of the model
+                num_classes=datasets["num_classes"],  # Number of output classes
+                image_size=224,  # Size of the input image
+                patch_size=16,  # Size of the image patch
+                channels=3,  # Number of input channels
+                dropout=0.1,  # Dropout rate
+                depth=12,  # Depth of the model
+            )
 
     # load checkpoint if provided
     if configs.checkpoint is not None:
         model.load_state_dict(torch.load(configs.checkpoint, map_location="cpu"))
 
     model.to(configs.device)
+
+    print(f"num params: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     # initialize optimizer and scheduler
     optimizer = torch.optim.Adam(
