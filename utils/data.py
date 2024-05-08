@@ -10,8 +10,6 @@ from PIL import Image
 from torchvision import datasets
 from torchvision.transforms import v2
 
-from .imagenet import ImageNetDataset
-
 norm_dict = {
     "cifar10": {"mean": [0.4914, 0.4822, 0.4465], "std": [0.2470, 0.2435, 0.2616]},
     "cifar100": {"mean": [0.5071, 0.4867, 0.4408], "std": [0.2675, 0.2565, 0.2761]},
@@ -151,95 +149,6 @@ def get_transforms(configs) -> dict:
     return transforms
 
 
-# def get_ood_datasets(configs) -> dict:
-#     """
-#     load OOD datasets
-#     """
-
-#     ood_datasets = {
-#         "ood": None,
-#     }
-
-#     transform = get_transforms(configs)["val"]
-
-#     match configs.ood_dataset.lower():
-#         case "nfs":
-
-#             # list ood classes
-#             ood_classes = [e for e in ROUTES if e not in configs.ood_classes]
-
-#             if configs.use_fake_multiview:
-#                 ood_datasets["ood"] = FakeMultiMagImageDataset(
-#                     root=configs.dataset_root,
-#                     split="train_nova",
-#                     transform=transform,
-#                     fold=configs.fold_num,
-#                     drop_classes=ood_classes,
-#                 )
-#             elif configs.multimag:
-#                 ood_datasets["ood"] = MultiMagImageDataset(
-#                     root=configs.ood_dataset_root,
-#                     split="train_nova",
-#                     transform=transform,
-#                     drop_classes=ood_classes,
-#                     fold=configs.fold_num,
-#                     get_all_views=configs.allmag,
-#                 )
-#             else:
-#                 ood_datasets["ood"] = NFSImageDataset(
-#                     root=configs.ood_dataset_root,
-#                     split="train_nova",
-#                     transform=transform,
-#                     fold=configs.fold_num,
-#                     drop_classes=ood_classes,
-#                 )
-
-#         case "teneo":
-#             ood_datasets["ood"] = TransformTorchDataset(
-#                 dirpath=os.path.join(configs.dataset_root, "teneo"),
-#                 transform=transform,
-#                 fake_multiview=configs.use_fake_multiview,
-#             )
-
-#         case "mount":
-#             ood_datasets["ood"] = TransformTorchDataset(
-#                 dirpath=os.path.join(configs.dataset_root, "mount"),
-#                 transform=transform,
-#                 fake_multiview=configs.use_fake_multiview,
-#             )
-
-#         case "impurities":
-#             ood_datasets["ood"] = TransformTorchDataset(
-#                 dirpath=os.path.join(configs.dataset_root, "high-impurity"),
-#                 transform=transform,
-#                 fake_multiview=configs.use_fake_multiview,
-#             )
-
-#         case "cifar100":
-#             ood_datasets["ood"] = datasets.CIFAR100(
-#                 root=configs.ood_dataset_root, train=False, download=True, transform=transform
-#             )
-
-#         case "svhn":
-#             ood_datasets["ood"] = SVHNDataset(
-#                 root=configs.ood_dataset_root,
-#                 split="test",
-#                 download=True,
-#                 transform=transform,
-#                 fake_multiview=configs.use_fake_multiview,
-#             )
-
-#         case "imagenet-o" | "openimage-o":
-#             ood_datasets["ood"] = FileListDataset(
-#                 root=configs.ood_dataset_root, transform=transform, fake_multiview=configs.use_fake_multiview
-#             )
-
-#         case _:
-#             raise ValueError(f"OOD dataset {configs.ood_dataset} not supported")
-
-#     return ood_datasets
-
-
 def get_datasets(configs) -> dict:
     """
     load datasets
@@ -288,18 +197,16 @@ def get_datasets(configs) -> dict:
         case "imagenet":
             id_datasets["num_classes"] = 1000
 
-            id_datasets["train"] = ImageNetDataset(
+            id_datasets["train"] = datasets.ImageNet(
                 root=configs.dataset_root,
                 split="train",
                 transform=transforms["train"],
-                fake_multiview=configs.use_fake_multiview,
             )
 
-            id_datasets["val"] = ImageNetDataset(
+            id_datasets["val"] = datasets.ImageNet(
                 root=configs.dataset_root,
                 split="val",
                 transform=transforms["val"],
-                fake_multiview=configs.use_fake_multiview,
             )
 
     return id_datasets

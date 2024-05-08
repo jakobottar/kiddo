@@ -135,11 +135,15 @@ if __name__ == "__main__":
     # choose model architecture
     match configs.arch.lower():
         case "resnet18":
-            model = ResNet18(num_classes=datasets["num_classes"])
-            # model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+            model = models.resnet18()
+            model.load_state_dict(models.ResNet18_Weights.IMAGENET1K_V1.get_state_dict())
+            if configs.dataset != "imagenet":
+                model.fc = nn.Linear(model.fc.in_features, datasets["num_classes"])
         case "resnet50":
-            model = ResNet50(num_classes=datasets["num_classes"])
-            # model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+            model = models.resnet50()
+            model.load_state_dict(models.ResNet50_Weights.IMAGENET1K_V1.get_state_dict())
+            if configs.dataset != "imagenet":
+                model.fc = nn.Linear(model.fc.in_features, datasets["num_classes"])
         case "convnext":
             model = ConvNeXt()
             model.load_state_dict(models.ConvNeXt_Small_Weights.IMAGENET1K_V1.get_state_dict())
