@@ -14,7 +14,15 @@ from torchmetrics.classification import MulticlassAccuracy
 from torchvision import models
 from tqdm import tqdm
 
-from utils import ConvNeXt, ResNet18, ResNet50, ViT, get_datasets, parse_configs
+from utils import (
+    ConvNeXt,
+    ResNet18,
+    ResNet50,
+    ViT,
+    get_datasets,
+    parse_configs,
+    vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2,
+)
 
 
 def cosine_annealing(step, total_steps, lr_max, lr_min):
@@ -47,8 +55,8 @@ def train_loop(dataloader, model, optimizer):
 
         # compute prediction and loss
         logits = model(images)
-        if configs.arch == "vim":  # returns patchwise logits
-            logits = torch.mode(logits, dim=1).values
+        # if configs.arch == "vim":  # returns patchwise logits
+        #     logits = torch.mode(logits, dim=1).values
         loss = loss_fn(logits, labels)
         train_loss += loss.item()
 
@@ -58,7 +66,8 @@ def train_loop(dataloader, model, optimizer):
         scheduler.step()
 
         # update metrics
-        accuracy.update(torch.argmax(F.softmax(logits, dim=1), dim=1), labels)
+        pred_labs = torch.argmax(F.softmax(logits, dim=1), dim=1)
+        accuracy.update(pred_labs, labels)
 
     return {
         "train_acc": float(accuracy.compute()),
@@ -155,7 +164,7 @@ if __name__ == "__main__":
             if configs.dataset != "imagenet":
                 model.heads.head = nn.Linear(model.heads.head.in_features, datasets["num_classes"])
         case "vim":
-            raise NotImplementedError("Vim model not implemented yet.")
+            model = vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2()
 
     # load checkpoint if provided
     if configs.checkpoint is not None:
