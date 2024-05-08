@@ -14,7 +14,7 @@ from torchmetrics.classification import MulticlassAccuracy
 from torchvision import models
 from tqdm import tqdm
 
-from utils import ConvNeXt, ResNet18, ResNet50, Vim, ViT, get_datasets, parse_configs
+from utils import ConvNeXt, ResNet18, ResNet50, ViT, get_datasets, parse_configs
 
 
 def cosine_annealing(step, total_steps, lr_max, lr_min):
@@ -139,15 +139,11 @@ if __name__ == "__main__":
     # choose model architecture
     match configs.arch.lower():
         case "resnet18":
-            model = models.resnet18()
-            model.load_state_dict(models.ResNet18_Weights.IMAGENET1K_V1.get_state_dict())
-            if configs.dataset != "imagenet":
-                model.fc = nn.Linear(model.fc.in_features, datasets["num_classes"])
+            model = ResNet18(num_classes=datasets["num_classes"])
+            # model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         case "resnet50":
-            model = models.resnet50()
-            model.load_state_dict(models.ResNet50_Weights.IMAGENET1K_V1.get_state_dict())
-            if configs.dataset != "imagenet":
-                model.fc = nn.Linear(model.fc.in_features, datasets["num_classes"])
+            model = ResNet50(num_classes=datasets["num_classes"])
+            # model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         case "convnext":
             model = ConvNeXt()
             model.load_state_dict(models.ConvNeXt_Small_Weights.IMAGENET1K_V1.get_state_dict())
@@ -159,19 +155,7 @@ if __name__ == "__main__":
             if configs.dataset != "imagenet":
                 model.heads.head = nn.Linear(model.heads.head.in_features, datasets["num_classes"])
         case "vim":
-            model = Vim(
-                dim=256,  # Dimension of the model
-                heads=8,  # Number of attention heads
-                dt_rank=32,  # Rank of the dynamic routing tensor
-                dim_inner=256,  # Inner dimension of the model
-                d_state=256,  # State dimension of the model
-                num_classes=datasets["num_classes"],  # Number of output classes
-                image_size=224,  # Size of the input image
-                patch_size=16,  # Size of the image patch
-                channels=3,  # Number of input channels
-                dropout=0.1,  # Dropout rate
-                depth=12,  # Depth of the model
-            )
+            raise NotImplementedError("Vim model not implemented yet.")
 
     # load checkpoint if provided
     if configs.checkpoint is not None:

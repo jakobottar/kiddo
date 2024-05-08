@@ -1,7 +1,9 @@
 arch: resnet50
 batch-size: 256
-dataset: imagenet
-dataset-root: /scratch_nvme/jakobj/imagenet/1k
+# dataset: imagenet
+# dataset-root: /scratch_nvme/jakobj/imagenet/1k
+dataset: nfs
+dataset-root: /scratch_nvme/jakobj/nfs/routes
 device: cuda
 epochs: 10
 lr: 0.001
