@@ -55,8 +55,6 @@ def train_loop(dataloader, model, optimizer):
 
         # compute prediction and loss
         logits = model(images)
-        # if configs.arch == "vim":  # returns patchwise logits
-        #     logits = torch.mode(logits, dim=1).values
         loss = loss_fn(logits, labels)
         train_loss += loss.item()
 
@@ -97,8 +95,6 @@ def val_loop(val_dataloader, model):
 
             # compute prediction and loss
             logits = model(images)
-            if configs.arch == "vim":  # returns patchwise logits
-                logits = torch.mode(logits, dim=1).values
             val_loss += loss_fn(logits, labels).item()
             preds = torch.argmax(F.softmax(logits, dim=1), dim=1)
 
@@ -165,6 +161,9 @@ if __name__ == "__main__":
                 model.heads.head = nn.Linear(model.heads.head.in_features, datasets["num_classes"])
         case "vim":
             model = vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2()
+            # TODO: load weights from huggingface
+            if configs.dataset != "imagenet":
+                model.head = nn.Linear(model.num_features, datasets["num_classes"])
 
     # load checkpoint if provided
     if configs.checkpoint is not None:
