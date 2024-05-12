@@ -16,9 +16,20 @@ except ImportError:
     causal_conv1d_fn, causal_conv1d_update = None
 
 try:
-    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn, bimamba_inner_fn, mamba_inner_fn_no_out_proj
+    from mamba_ssm.ops.selective_scan_interface import (
+        selective_scan_fn,
+        mamba_inner_fn,
+        bimamba_inner_fn,
+        mamba_inner_fn_no_out_proj,
+    )
 except ImportError:
-    selective_scan_fn, mamba_inner_fn, bimamba_inner_fn, mamba_inner_fn_no_out_proj = None, None, None, None, None
+    selective_scan_fn, mamba_inner_fn, bimamba_inner_fn, mamba_inner_fn_no_out_proj = (
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
 
 try:
     from mamba_ssm.ops.triton.selective_state_update import selective_state_update
@@ -86,9 +97,7 @@ class Mamba(nn.Module):
         self.activation = "silu"
         self.act = nn.SiLU()
 
-        self.x_proj = nn.Linear(
-            self.d_inner, self.dt_rank + self.d_state * 2, bias=False, **factory_kwargs
-        )
+        self.x_proj = nn.Linear(self.d_inner, self.dt_rank + self.d_state * 2, bias=False, **factory_kwargs)
         self.dt_proj = nn.Linear(self.dt_rank, self.d_inner, bias=True, **factory_kwargs)
 
         # Initialize special dt projection to preserve variance at initialization
@@ -102,8 +111,7 @@ class Mamba(nn.Module):
 
         # Initialize dt bias so that F.softplus(dt_bias) is between dt_min and dt_max
         dt = torch.exp(
-            torch.rand(self.d_inner, **factory_kwargs) * (math.log(dt_max) - math.log(dt_min))
-            + math.log(dt_min)
+            torch.rand(self.d_inner, **factory_kwargs) * (math.log(dt_max) - math.log(dt_min)) + math.log(dt_min)
         ).clamp(min=dt_init_floor)
         # Inverse of softplus: https://github.com/pytorch/pytorch/issues/72759
         inv_dt = dt + torch.log(-torch.expm1(-dt))
@@ -144,7 +152,7 @@ class Mamba(nn.Module):
             ).contiguous()
             A_b_log = torch.log(A_b)  # Keep A_b_log in fp32
             self.A_b_log = nn.Parameter(A_b_log)
-            self.A_b_log._no_weight_decay = True 
+            self.A_b_log._no_weight_decay = True
 
             self.conv1d_b = nn.Conv1d(
                 in_channels=self.d_inner,
@@ -157,7 +165,10 @@ class Mamba(nn.Module):
             )
 
             self.x_proj_b = nn.Linear(
-                self.d_inner, self.dt_rank + self.d_state * 2, bias=False, **factory_kwargs
+                self.d_inner,
+                self.dt_rank + self.d_state * 2,
+                bias=False,
+                **factory_kwargs,
             )
             self.dt_proj_b = nn.Linear(self.dt_rank, self.d_inner, bias=True, **factory_kwargs)
 
@@ -210,7 +221,7 @@ class Mamba(nn.Module):
                     self.D.float(),
                     delta_bias=self.dt_proj.bias.float(),
                     delta_softplus=True,
-                )    
+                )
             elif self.bimamba_type == "v2":
                 A_b = -torch.exp(self.A_b_log.float())
                 out = mamba_inner_fn_no_out_proj(
@@ -241,9 +252,17 @@ class Mamba(nn.Module):
                 )
                 # F.linear(rearrange(out_z, "b d l -> b l d"), out_proj_weight, out_proj_bias)
                 if not self.if_devide_out:
-                    out = F.linear(rearrange(out + out_b.flip([-1]), "b d l -> b l d"), self.out_proj.weight, self.out_proj.bias)
+                    out = F.linear(
+                        rearrange(out + out_b.flip([-1]), "b d l -> b l d"),
+                        self.out_proj.weight,
+                        self.out_proj.bias,
+                    )
                 else:
-                    out = F.linear(rearrange(out + out_b.flip([-1]), "b d l -> b l d") / 2, self.out_proj.weight, self.out_proj.bias)
+                    out = F.linear(
+                        rearrange(out + out_b.flip([-1]), "b d l -> b l d") / 2,
+                        self.out_proj.weight,
+                        self.out_proj.bias,
+                    )
 
             else:
                 out = mamba_inner_fn(
@@ -307,7 +326,7 @@ class Mamba(nn.Module):
             y = rearrange(y, "b d l -> b l d")
             out = self.out_proj(y)
         if self.init_layer_scale is not None:
-                out = out * self.gamma    
+            out = out * self.gamma
         return out
 
     def step(self, hidden_states, conv_state, ssm_state):
@@ -351,7 +370,16 @@ class Mamba(nn.Module):
             y = y * self.act(z)  # (B D)
         else:
             y = selective_state_update(
-                ssm_state, x, dt, A, B, C, self.D, z=z, dt_bias=self.dt_proj.bias, dt_softplus=True
+                ssm_state,
+                x,
+                dt,
+                A,
+                B,
+                C,
+                self.D,
+                z=z,
+                dt_bias=self.dt_proj.bias,
+                dt_softplus=True,
             )
 
         out = self.out_proj(y)
@@ -361,12 +389,20 @@ class Mamba(nn.Module):
         device = self.out_proj.weight.device
         conv_dtype = self.conv1d.weight.dtype if dtype is None else dtype
         conv_state = torch.zeros(
-            batch_size, self.d_model * self.expand, self.d_conv, device=device, dtype=conv_dtype
+            batch_size,
+            self.d_model * self.expand,
+            self.d_conv,
+            device=device,
+            dtype=conv_dtype,
         )
         ssm_dtype = self.dt_proj.weight.dtype if dtype is None else dtype
         # ssm_dtype = torch.float32
         ssm_state = torch.zeros(
-            batch_size, self.d_model * self.expand, self.d_state, device=device, dtype=ssm_dtype
+            batch_size,
+            self.d_model * self.expand,
+            self.d_state,
+            device=device,
+            dtype=ssm_dtype,
         )
         return conv_state, ssm_state
 
@@ -389,7 +425,10 @@ class Mamba(nn.Module):
                 dtype=self.dt_proj.weight.dtype,
                 # dtype=torch.float32,
             )
-            inference_params.key_value_memory_dict[self.layer_idx] = (conv_state, ssm_state)
+            inference_params.key_value_memory_dict[self.layer_idx] = (
+                conv_state,
+                ssm_state,
+            )
         else:
             conv_state, ssm_state = inference_params.key_value_memory_dict[self.layer_idx]
             # TODO: What if batch size changes between generation, and we reuse the same states?
@@ -401,7 +440,12 @@ class Mamba(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-        self, dim, mixer_cls, norm_cls=nn.LayerNorm, fused_add_norm=False, residual_in_fp32=False
+        self,
+        dim,
+        mixer_cls,
+        norm_cls=nn.LayerNorm,
+        fused_add_norm=False,
+        residual_in_fp32=False,
     ):
         """
         Simple block wrapping a mixer class with LayerNorm/RMSNorm and residual connection"
@@ -427,7 +471,10 @@ class Block(nn.Module):
             ), "Only LayerNorm and RMSNorm are supported for fused_add_norm"
 
     def forward(
-        self, hidden_states: Tensor, residual: Optional[Tensor] = None, inference_params=None
+        self,
+        hidden_states: Tensor,
+        residual: Optional[Tensor] = None,
+        inference_params=None,
     ):
         r"""Pass the input through the encoder layer.
 

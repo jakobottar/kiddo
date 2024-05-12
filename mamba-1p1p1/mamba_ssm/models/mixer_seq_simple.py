@@ -36,9 +36,7 @@ def create_block(
         ssm_cfg = {}
     factory_kwargs = {"device": device, "dtype": dtype}
     mixer_cls = partial(Mamba, layer_idx=layer_idx, **ssm_cfg, **factory_kwargs)
-    norm_cls = partial(
-        nn.LayerNorm if not rms_norm else RMSNorm, eps=norm_epsilon, **factory_kwargs
-    )
+    norm_cls = partial(nn.LayerNorm if not rms_norm else RMSNorm, eps=norm_epsilon, **factory_kwargs)
     block = Block(
         d_model,
         mixer_cls,
@@ -130,9 +128,7 @@ class MixerModel(nn.Module):
             ]
         )
 
-        self.norm_f = (nn.LayerNorm if not rms_norm else RMSNorm)(
-            d_model, eps=norm_epsilon, **factory_kwargs
-        )
+        self.norm_f = (nn.LayerNorm if not rms_norm else RMSNorm)(d_model, eps=norm_epsilon, **factory_kwargs)
 
         self.apply(
             partial(
@@ -152,9 +148,7 @@ class MixerModel(nn.Module):
         hidden_states = self.embedding(input_ids)
         residual = None
         for layer in self.layers:
-            hidden_states, residual = layer(
-                hidden_states, residual, inference_params=inference_params
-            )
+            hidden_states, residual = layer(hidden_states, residual, inference_params=inference_params)
         if not self.fused_add_norm:
             residual = (hidden_states + residual) if residual is not None else hidden_states
             hidden_states = self.norm_f(residual.to(dtype=self.norm_f.weight.dtype))
@@ -174,7 +168,6 @@ class MixerModel(nn.Module):
 
 
 class MambaLMHeadModel(nn.Module, GenerationMixin):
-
     def __init__(
         self,
         config: MambaConfig,
@@ -255,10 +248,10 @@ class MambaLMHeadModel(nn.Module, GenerationMixin):
             os.makedirs(save_directory)
 
         # Save the model's state_dict
-        model_path = os.path.join(save_directory, 'pytorch_model.bin')
+        model_path = os.path.join(save_directory, "pytorch_model.bin")
         torch.save(self.state_dict(), model_path)
 
         # Save the configuration of the model
-        config_path = os.path.join(save_directory, 'config.json')
-        with open(config_path, 'w') as f:
+        config_path = os.path.join(save_directory, "config.json")
+        with open(config_path, "w") as f:
             json.dump(self.config.__dict__, f)

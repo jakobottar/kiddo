@@ -21,7 +21,7 @@ from utils import (
     ViT,
     get_datasets,
     parse_configs,
-    vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2,
+    vim_tiny,
 )
 
 
@@ -160,7 +160,7 @@ if __name__ == "__main__":
             if configs.dataset != "imagenet":
                 model.heads.head = nn.Linear(model.heads.head.in_features, datasets["num_classes"])
         case "vim":
-            model = vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2()
+            model = vim_tiny()
             # TODO: load weights from huggingface
             if configs.dataset != "imagenet":
                 model.head = nn.Linear(model.num_features, datasets["num_classes"])

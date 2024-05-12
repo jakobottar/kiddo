@@ -26,9 +26,7 @@ def layer_norm_ref(x, weight, bias, residual=None, eps=1e-6, prenorm=False, upca
         residual = residual.float() if residual is not None else residual
     if residual is not None:
         x = (x + residual).to(x.dtype)
-    out = F.layer_norm(x.to(weight.dtype), x.shape[-1:], weight=weight, bias=bias, eps=eps).to(
-        dtype
-    )
+    out = F.layer_norm(x.to(weight.dtype), x.shape[-1:], weight=weight, bias=bias, eps=eps).to(dtype)
     return out if not prenorm else (out, x)
 
 
@@ -121,7 +119,14 @@ def _layer_norm_fwd_1pass_kernel(
 
 
 def _layer_norm_fwd(
-    x, weight, bias, eps, residual=None, out_dtype=None, residual_dtype=None, is_rms_norm=False
+    x,
+    weight,
+    bias,
+    eps,
+    residual=None,
+    out_dtype=None,
+    residual_dtype=None,
+    is_rms_norm=False,
 ):
     if residual is not None:
         residual_dtype = residual.dtype
@@ -317,11 +322,7 @@ def _layer_norm_bwd(
         assert bias.stride(-1) == 1
         assert bias.shape == (N,)
     # allocate output
-    dx = (
-        torch.empty_like(x)
-        if x_dtype is None
-        else torch.empty(M, N, dtype=x_dtype, device=x.device)
-    )
+    dx = torch.empty_like(x) if x_dtype is None else torch.empty(M, N, dtype=x_dtype, device=x.device)
     dresidual_in = torch.empty_like(x) if has_residual and dx.dtype != x.dtype else None
     y = torch.empty(M, N, dtype=dy.dtype, device=dy.device) if recompute_output else None
 
@@ -332,11 +333,7 @@ def _layer_norm_bwd(
         raise RuntimeError("This layer norm doesn't support feature dim >= 64KB.")
     sm_count = torch.cuda.get_device_properties(x.device).multi_processor_count
     _dw = torch.empty((sm_count, N), dtype=torch.float32, device=weight.device)
-    _db = (
-        torch.empty((sm_count, N), dtype=torch.float32, device=bias.device)
-        if bias is not None
-        else None
-    )
+    _db = torch.empty((sm_count, N), dtype=torch.float32, device=bias.device) if bias is not None else None
     rows_per_program = math.ceil(M / sm_count)
     grid = (sm_count,)
     with torch.cuda.device(x.device.index):
@@ -403,13 +400,15 @@ class LayerNormFn(torch.autograd.Function):
         weight = weight.contiguous()
         if bias is not None:
             bias = bias.contiguous()
-        residual_dtype = (
-            residual.dtype
-            if residual is not None
-            else (torch.float32 if residual_in_fp32 else None)
-        )
+        residual_dtype = residual.dtype if residual is not None else (torch.float32 if residual_in_fp32 else None)
         y, mean, rstd, residual_out = _layer_norm_fwd(
-            x, weight, bias, eps, residual, residual_dtype=residual_dtype, is_rms_norm=is_rms_norm
+            x,
+            weight,
+            bias,
+            eps,
+            residual,
+            residual_dtype=residual_dtype,
+            is_rms_norm=is_rms_norm,
         )
         ctx.save_for_backward(residual_out, weight, bias, mean, rstd)
         ctx.x_shape_og = x_shape_og
@@ -531,11 +530,7 @@ class LayerNormLinearFn(torch.autograd.Function):
         norm_weight = norm_weight.contiguous()
         if norm_bias is not None:
             norm_bias = norm_bias.contiguous()
-        residual_dtype = (
-            residual.dtype
-            if residual is not None
-            else (torch.float32 if residual_in_fp32 else None)
-        )
+        residual_dtype = residual.dtype if residual is not None else (torch.float32 if residual_in_fp32 else None)
         y, mean, rstd, residual_out = _layer_norm_fwd(
             x,
             norm_weight,
