@@ -6,36 +6,21 @@
 
 import math
 import random
-from collections import namedtuple
 from functools import partial
 from typing import Optional
 
 import torch
 import torch.nn as nn
 from mamba_ssm.modules.mamba_simple import Mamba
-from mamba_ssm.utils.generation import GenerationMixin
-from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
 from timm.models.layers import DropPath, lecun_normal_, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
-from timm.models.vision_transformer import VisionTransformer, _cfg, _load_weights
+from timm.models.vision_transformer import _cfg, _load_weights
 from torch import Tensor
-
-from .rope import *
 
 try:
     from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
 except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
-
-
-__all__ = [
-    "vim_tiny_patch16_224",
-    "vim_small_patch16_224",
-    "vim_base_patch16_224",
-    "vim_tiny_patch16_384",
-    "vim_small_patch16_384",
-    "vim_base_patch16_384",
-]
 
 
 class PatchEmbed(nn.Module):
@@ -263,8 +248,6 @@ class VisionMamba(nn.Module):
         if_bidirectional=False,
         final_pool_type="none",
         if_abs_pos_embed=False,
-        if_rope=False,
-        if_rope_residual=False,
         flip_img_sequences_ratio=-1.0,
         if_bimamba=False,
         bimamba_type="none",
@@ -284,8 +267,6 @@ class VisionMamba(nn.Module):
         self.if_bidirectional = if_bidirectional
         self.final_pool_type = final_pool_type
         self.if_abs_pos_embed = if_abs_pos_embed
-        self.if_rope = if_rope
-        self.if_rope_residual = if_rope_residual
         self.flip_img_sequences_ratio = flip_img_sequences_ratio
         self.if_cls_token = if_cls_token
         self.use_double_cls_token = use_double_cls_token
@@ -314,10 +295,6 @@ class VisionMamba(nn.Module):
             self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_tokens, self.embed_dim))
             self.pos_drop = nn.Dropout(p=drop_rate)
 
-        if if_rope:
-            half_head_dim = embed_dim // 2
-            hw_seq_len = img_size // patch_size
-            self.rope = VisionRotaryEmbeddingFast(dim=half_head_dim, pt_seq_len=pt_hw_seq_len, ft_seq_len=hw_seq_len)
         self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
 
         # TODO: release this comment
@@ -470,30 +447,10 @@ class VisionMamba(nn.Module):
         if not self.if_bidirectional:
             for layer in self.layers:
 
-                if if_flip_img_sequences and self.if_rope:
-                    hidden_states = hidden_states.flip([1])
-                    if residual is not None:
-                        residual = residual.flip([1])
-
-                # rope about
-                if self.if_rope:
-                    hidden_states = self.rope(hidden_states)
-                    if residual is not None and self.if_rope_residual:
-                        residual = self.rope(residual)
-
-                if if_flip_img_sequences and self.if_rope:
-                    hidden_states = hidden_states.flip([1])
-                    if residual is not None:
-                        residual = residual.flip([1])
-
                 hidden_states, residual = layer(hidden_states, residual, inference_params=inference_params)
         else:
             # get two layers in a single for-loop
             for i in range(len(self.layers) // 2):
-                if self.if_rope:
-                    hidden_states = self.rope(hidden_states)
-                    if residual is not None and self.if_rope_residual:
-                        residual = self.rope(residual)
 
                 hidden_states_f, residual_f = self.layers[i * 2](
                     hidden_states, residual, inference_params=inference_params
@@ -581,8 +538,6 @@ def vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_
         fused_add_norm=True,
         final_pool_type="mean",
         if_abs_pos_embed=True,
-        if_rope=False,
-        if_rope_residual=False,
         bimamba_type="v2",
         if_cls_token=True,
         if_devide_out=True,
@@ -610,8 +565,6 @@ def vim_tiny_patch16_stride8_224_bimambav2_final_pool_mean_abs_pos_embed_with_mi
         fused_add_norm=True,
         final_pool_type="mean",
         if_abs_pos_embed=True,
-        if_rope=False,
-        if_rope_residual=False,
         bimamba_type="v2",
         if_cls_token=True,
         if_devide_out=True,
@@ -636,8 +589,6 @@ def vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok
         fused_add_norm=True,
         final_pool_type="mean",
         if_abs_pos_embed=True,
-        if_rope=False,
-        if_rope_residual=False,
         bimamba_type="v2",
         if_cls_token=True,
         if_devide_out=True,
@@ -665,8 +616,6 @@ def vim_small_patch16_stride8_224_bimambav2_final_pool_mean_abs_pos_embed_with_m
         fused_add_norm=True,
         final_pool_type="mean",
         if_abs_pos_embed=True,
-        if_rope=False,
-        if_rope_residual=False,
         bimamba_type="v2",
         if_cls_token=True,
         if_devide_out=True,
