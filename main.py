@@ -193,6 +193,7 @@ if __name__ == "__main__":
     #################
     ## TRAIN MODEL ##
     #################
+    # COMMENT OUT MLFLOW LINES TO IGNORE - PARAMETER AND METRIC LOGGING
     mlflow.set_tracking_uri("http://tularosa.sci.utah.edu:5000")
     mlflow.set_experiment("kiddo")
     mlflow.start_run(run_name=configs.name)
